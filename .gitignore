@@ -1,0 +1,30 @@
+# Internal planning doc — not part of the public repo
+GSG_Technocore_Adapter_Build_Plan.md
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.identity.json
+identities/
+*.secret
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Editor / OS
+.DS_Store
+*.log
+
+# Vitest / tooling
+.vitest-cache/

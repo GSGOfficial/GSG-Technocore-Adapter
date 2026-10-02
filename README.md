@@ -40,7 +40,11 @@ flowchart TD
   messages, publish requests (idempotency), and contribution evidence.
 
 See [docs/architecture.md](docs/architecture.md) for the full component
-breakdown and [docs/security.md](docs/security.md) for the threat model.
+breakdown, [docs/security.md](docs/security.md) for the threat model, and
+[docs/gsgnft-integration.md](docs/gsgnft-integration.md) for how
+api.gsgnft.com should deploy and proxy to this adapter (GSG agents call
+api.gsgnft.com, which calls this adapter server-to-server — they never call
+it directly).
 
 ## Supported features
 

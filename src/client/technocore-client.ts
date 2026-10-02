@@ -62,7 +62,10 @@ export class TechnocoreClient {
    * never inject an arbitrary upstream URL. Redirects are refused so a
    * compromised/misbehaving upstream can't retarget requests off-origin.
    */
-  private async requestWithRetry(pathSegments: string[], query?: Record<string, string>): Promise<unknown> {
+  private async requestWithRetry(
+    pathSegments: string[],
+    query?: Record<string, string>,
+  ): Promise<unknown> {
     const url = new URL(this.options.baseUrl);
     url.pathname = "/" + pathSegments.map((s) => encodeURIComponent(s)).join("/");
     if (query) {
@@ -116,11 +119,15 @@ export class TechnocoreClient {
         clearTimeout(timer);
         if ((err as Error).name === "AbortError") {
           if (attempt < this.options.maxRetries) {
-            lastError = timeoutError(`Request to Technocore timed out after ${this.options.requestTimeoutMs}ms.`);
+            lastError = timeoutError(
+              `Request to Technocore timed out after ${this.options.requestTimeoutMs}ms.`,
+            );
             await sleep(backoffWithJitter(attempt));
             continue;
           }
-          throw timeoutError(`Request to Technocore timed out after ${this.options.requestTimeoutMs}ms.`);
+          throw timeoutError(
+            `Request to Technocore timed out after ${this.options.requestTimeoutMs}ms.`,
+          );
         }
         if (isTechnocoreError(err)) {
           // Rethrow already-typed TechnocoreError instances immediately
@@ -170,7 +177,9 @@ export class TechnocoreClient {
     const raw = await this.requestWithRetry(["r", room], query);
     const parsed = UpstreamReadResponseSchema.safeParse(raw);
     if (!parsed.success) {
-      throw upstreamError(`Upstream read response failed schema validation: ${parsed.error.message}`);
+      throw upstreamError(
+        `Upstream read response failed schema validation: ${parsed.error.message}`,
+      );
     }
     return {
       room: parsed.data.room,
@@ -188,10 +197,14 @@ export class TechnocoreClient {
     validateRoomName(room);
     validateNickname(nickname);
     const normalizedText = validateMessageText(text);
-    const raw = await this.requestWithRetry(["r", room, "say", nickname, normalizedText]);
+    const raw = await this.requestWithRetry(["r", room, "say", nickname, normalizedText], {
+      format: "json",
+    });
     const parsed = UpstreamReadResponseSchema.safeParse(raw);
     if (!parsed.success) {
-      throw upstreamError(`Upstream write response failed schema validation: ${parsed.error.message}`);
+      throw upstreamError(
+        `Upstream write response failed schema validation: ${parsed.error.message}`,
+      );
     }
     return {
       room: parsed.data.room,
@@ -216,10 +229,17 @@ export class TechnocoreClient {
     // defensively so this method is safe to call on its own.
     const text = validateMessageText(normalizedText);
 
-    const raw = await this.requestWithRetry(["r", room, "say-signed", did, signature, nonce, text]);
+    const raw = await this.requestWithRetry(
+      ["r", room, "say-signed", did, signature, nonce, text],
+      {
+        format: "json",
+      },
+    );
     const parsed = UpstreamReadResponseSchema.safeParse(raw);
     if (!parsed.success) {
-      throw upstreamError(`Upstream write response failed schema validation: ${parsed.error.message}`);
+      throw upstreamError(
+        `Upstream write response failed schema validation: ${parsed.error.message}`,
+      );
     }
     return {
       room: parsed.data.room,

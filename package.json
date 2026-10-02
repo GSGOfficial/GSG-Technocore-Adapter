@@ -14,17 +14,17 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests scripts examples",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "identity:create": "tsx scripts/create-agent-identity.ts",
-    "identity:verify": "tsx scripts/verify-agent-identity.ts",
-    "archive:room": "tsx scripts/archive-room.ts",
-    "smoke-test": "tsx scripts/smoke-test.ts"
+    "identity:create": "tsx --env-file=.env scripts/create-agent-identity.ts",
+    "identity:verify": "tsx --env-file=.env scripts/verify-agent-identity.ts",
+    "archive:room": "tsx --env-file=.env scripts/archive-room.ts",
+    "smoke-test": "tsx --env-file=.env scripts/smoke-test.ts"
   },
   "dependencies": {
     "@noble/curves": "^1.6.0",

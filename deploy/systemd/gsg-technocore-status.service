@@ -1,0 +1,31 @@
+# Health check: runs `npm run status -- --notify` and posts to
+# TECHNOCORE_ALERT_WEBHOOK_URL (from .env) when something needs attention.
+# Triggered by gsg-technocore-status.timer. The unit exits non-zero, and
+# shows in `systemctl --failed`, while a problem persists.
+# See docs/monitoring.md.
+
+[Unit]
+Description=GSG Technocore Adapter status check
+After=gsg-technocore-adapter.service
+
+[Service]
+Type=oneshot
+User=technocore
+Group=technocore
+WorkingDirectory=/opt/gsg-technocore-adapter
+EnvironmentFile=/opt/gsg-technocore-adapter/.env
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/node node_modules/tsx/dist/cli.mjs scripts/status.ts --notify
+TimeoutStartSec=2min
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/gsg-technocore-adapter

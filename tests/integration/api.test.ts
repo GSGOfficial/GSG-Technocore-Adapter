@@ -191,4 +191,69 @@ describe("technocore adapter API", () => {
     expect(res.body.error.code).toBe("TECHNOCORE_INVALID_MESSAGE");
     expect(res.body.error.message).toContain("title");
   });
+
+  it("logs one publish event per attempt, without the message text", async () => {
+    const { publicDid } = seedActiveAgent(ctx, "gsg-financial-agent");
+    global.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          room: "gsg-financial",
+          count: 1,
+          first_seq: 7,
+          last_seq: 7,
+          messages: [{ seq: 7, ts: "2026-10-02T00:00:00Z", from: publicDid, text: "Secret-free summary.", nonce: 1 }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const app = createStandaloneApp(ctx);
+    await request(app)
+      .post("/api/technocore/rooms/gsg-financial/messages")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .set("Idempotency-Key", "log-1")
+      .send({ agentSlug: "gsg-financial-agent", text: "Secret-free summary." });
+    await request(app)
+      .post("/api/technocore/rooms/gsg-financial/messages")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .set("Idempotency-Key", "log-2")
+      .send({ agentSlug: "does-not-exist", text: "hi" });
+
+    const lines = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0]));
+    const events = lines
+      .filter((l) => l.includes("technocore_publish"))
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      outcome: "published",
+      agent: "gsg-financial-agent",
+      room: "gsg-financial",
+      idempotencyKey: "log-1",
+      nonce: "1",
+      sequence: 7,
+    });
+    expect(typeof events[0]?.requestId).toBe("string");
+    expect(events[1]).toMatchObject({
+      outcome: "rejected",
+      agent: "does-not-exist",
+      errorCode: "TECHNOCORE_AGENT_NOT_FOUND",
+    });
+    expect(lines.join("\n")).not.toContain("Secret-free summary.");
+  });
+
+  it("logs rejected credentials without echoing them", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const app = createStandaloneApp(ctx);
+    await request(app)
+      .post("/api/technocore/rooms/gsg-financial/messages")
+      .set("Authorization", "Bearer not-the-key")
+      .set("Idempotency-Key", "k-auth")
+      .send({ agentSlug: "gsg-financial-agent", text: "hi" });
+    const lines = warnSpy.mock.calls.map((c) => String(c[0]));
+    expect(lines.some((l) => l.includes("technocore_auth_rejected"))).toBe(true);
+    expect(lines.join("\n")).not.toContain("not-the-key");
+  });
 });

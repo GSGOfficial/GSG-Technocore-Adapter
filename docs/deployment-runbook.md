@@ -12,8 +12,9 @@ adapter, see [gsgnft-integration.md](gsgnft-integration.md).
 | Code | `/opt/gsg-technocore-adapter`: a clone of a pinned release tag, owned by root, readable by `technocore` |
 | Config | `/opt/gsg-technocore-adapter/.env`: owner `technocore:technocore`, mode `600` |
 | Database | `/var/lib/gsg-technocore-adapter/technocore.db`: directory mode `700`, file mode `600`, both owned by `technocore` |
-| Service | `gsg-technocore-adapter.service` runs as `technocore` under systemd (not pm2), listening on `127.0.0.1:8787` only |
+| Service | `gsg-technocore-adapter.service` runs as `technocore` under systemd, separate from api-media, listening on `127.0.0.1:8787` only |
 | Archiving | `gsg-technocore-archive.timer` runs every 5 minutes |
+| Monitoring | `gsg-technocore-status.timer` runs every 15 minutes and alerts a webhook if needed ([monitoring.md](monitoring.md)) |
 | Reached by | api-media at `http://127.0.0.1:8787`, with no TLS and no public exposure |
 
 Commands marked **[Mac]** run on the owner's development machine. All
@@ -77,7 +78,7 @@ recent writes. Stop `npm run dev` first, then take an online backup into a
 single file:
 
 ```bash
-cd "/Volumes/Studio-Mac/Projects/UTILITY APPLICATIONS/Technocore-Chat"
+cd /path/to/GSG-Technocore-Adapter   # your local checkout
 sqlite3 data/technocore.db ".backup /tmp/technocore-migrate.db"
 sqlite3 /tmp/technocore-migrate.db "SELECT slug, status, public_did FROM technocore_agents;"
 # expect: gsg-financial-agent|active|did:key:z6MkpNHbrGBcuhQnkBFZ2xMJsrmo4HmwVPPTDyBhCWpcj7fs
@@ -168,13 +169,12 @@ decryption error, or a different DID, **stop** and re-check steps 3–5.
 
 ```bash
 cd /opt/gsg-technocore-adapter
-sudo cp deploy/systemd/gsg-technocore-adapter.service \
-        deploy/systemd/gsg-technocore-archive.service \
-        deploy/systemd/gsg-technocore-archive.timer /etc/systemd/system/
-sudo systemd-analyze verify /etc/systemd/system/gsg-technocore-*.service /etc/systemd/system/gsg-technocore-archive.timer
+sudo cp deploy/systemd/gsg-technocore-*.service deploy/systemd/gsg-technocore-*.timer /etc/systemd/system/
+sudo systemd-analyze verify /etc/systemd/system/gsg-technocore-*.service /etc/systemd/system/gsg-technocore-*.timer
 sudo systemctl daemon-reload
 sudo systemctl enable --now gsg-technocore-adapter.service
 sudo systemctl enable --now gsg-technocore-archive.timer
+sudo systemctl enable --now gsg-technocore-status.timer
 ```
 
 ## 9. Check the result
@@ -191,7 +191,13 @@ sudo journalctl -u gsg-technocore-adapter -n 20 --no-pager
 
 sudo systemctl start gsg-technocore-archive.service && sudo journalctl -u gsg-technocore-archive -n 10 --no-pager
 # expect one technocore_archive_pass line per allowed room
+
+sudo -u technocore -H npm run status
+# expect "Nothing needs attention."
 ```
+
+If you want alerts in Slack or Discord, set `TECHNOCORE_ALERT_WEBHOOK_URL`
+in `.env`. See [monitoring.md](monitoring.md).
 
 From **outside** the droplet, `curl -m 5 http://<droplet-public-ip>:8787/`
 must fail to connect.

@@ -24,6 +24,7 @@ export class ArchiveService {
   async archiveRoom(room: string): Promise<ArchiveRunResult> {
     const cursorBefore = await this.cursors.getCursor(room);
     const result = await this.client.readRoom(room, { since: cursorBefore, limit: this.readLimit });
+    await this.cursors.markPolled(room);
 
     let gapDetected = false;
     if (cursorBefore > 0 && result.firstSequence !== null && result.firstSequence > cursorBefore + 1) {

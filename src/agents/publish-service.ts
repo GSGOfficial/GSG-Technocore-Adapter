@@ -21,6 +21,39 @@ export interface PublishServiceDeps {
   publishRequests: SqlitePublishRequestService | InMemoryPublishRequestService;
   identityEncryptionKey: string;
   db: TechnocoreDatabase | null;
+  /** Receives one structured event per publish attempt. Defaults to stdout as JSON. */
+  log?: (event: PublishLogEvent) => void;
+}
+
+export type PublishOutcome = "published" | "replayed" | "rejected" | "unresolved" | "unknown" | "failed";
+
+/**
+ * One line per publish attempt, for operators. Deliberately excludes the
+ * message text and any key material.
+ */
+export interface PublishLogEvent {
+  event: "technocore_publish";
+  outcome: PublishOutcome;
+  agent: string;
+  room: string;
+  idempotencyKey: string;
+  requestId?: string;
+  nonce?: string;
+  sequence?: number | null;
+  errorCode?: string;
+  durationMs: number;
+}
+
+interface PublishTrace {
+  outcome?: PublishOutcome;
+  nonce?: string;
+  sequence?: number | null;
+}
+
+function defaultPublishLog(event: PublishLogEvent): void {
+  const line = JSON.stringify(event);
+  if (event.outcome === "published" || event.outcome === "replayed") console.log(line);
+  else console.warn(line);
 }
 
 /**
@@ -34,6 +67,44 @@ export class PublishService {
   constructor(private readonly deps: PublishServiceDeps) {}
 
   async publish(input: PublishMessageInput): Promise<PublishMessageResult> {
+    const startedAt = Date.now();
+    const trace: PublishTrace = {};
+    const log = this.deps.log ?? defaultPublishLog;
+    const base = {
+      event: "technocore_publish" as const,
+      agent: input.agentSlug,
+      room: input.room,
+      idempotencyKey: input.idempotencyKey,
+      ...(input.requestId ? { requestId: input.requestId } : {}),
+    };
+    try {
+      const result = await this.publishTraced(input, trace);
+      log({
+        ...base,
+        outcome: trace.outcome ?? "published",
+        nonce: trace.nonce,
+        sequence: result.sequence,
+        durationMs: Date.now() - startedAt,
+      });
+      return result;
+    } catch (err) {
+      // Failures before a nonce was allocated are policy/validation
+      // rejections; nothing was sent upstream.
+      log({
+        ...base,
+        outcome: trace.outcome ?? (trace.nonce ? "failed" : "rejected"),
+        nonce: trace.nonce,
+        errorCode: isTechnocoreError(err) ? err.code : "UNEXPECTED_ERROR",
+        durationMs: Date.now() - startedAt,
+      });
+      throw err;
+    }
+  }
+
+  private async publishTraced(
+    input: PublishMessageInput,
+    trace: PublishTrace,
+  ): Promise<PublishMessageResult> {
     const agent = await this.deps.agents.getAgent(input.agentSlug);
 
     const existing = await this.deps.publishRequests.find(input.idempotencyKey);
@@ -48,6 +119,7 @@ export class PublishService {
 
     if (existing && existing.status === "published") {
       // Same key, same content already succeeded: return without re-publishing.
+      trace.outcome = "replayed";
       return {
         room: input.room,
         sequence: null,
@@ -58,6 +130,7 @@ export class PublishService {
       };
     }
     if (existing && (existing.status === "pending" || existing.status === "unknown")) {
+      trace.outcome = "unresolved";
       throw unknownPublishResultError(
         "A previous publish attempt with this idempotency key is still pending or unresolved. " +
           "Check its status before retrying rather than publishing again.",
@@ -65,6 +138,7 @@ export class PublishService {
     }
 
     const nonce = (await this.deps.nonces.allocateNonce(agent.id, input.room)).toString();
+    trace.nonce = nonce;
 
     const signing = await this.deps.agents.getSigningMaterial(agent.slug);
     const secretKey = decryptSecretKey(signing.encryptedSecretKey, this.deps.identityEncryptionKey);
@@ -101,6 +175,7 @@ export class PublishService {
     } catch (err) {
       if (isTechnocoreError(err) && err.code === "TECHNOCORE_TIMEOUT") {
         await this.deps.publishRequests.markUnknown(input.idempotencyKey);
+        trace.outcome = "unknown";
         throw unknownPublishResultError(
           "Upstream timed out; the message may or may not have been stored. " +
             "Reconcile by re-reading the room for this DID/nonce before retrying.",

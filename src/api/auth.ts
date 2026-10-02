@@ -25,6 +25,15 @@ export function requireGsgAuth(config: AdapterConfig) {
       return;
     }
     if (!isAuthorized(req, config.gsgApiKey)) {
+      // Never log the presented credential.
+      console.warn(
+        JSON.stringify({
+          event: "technocore_auth_rejected",
+          method: req.method,
+          path: req.originalUrl.split("?")[0],
+          requestId: (req as Request & { requestId?: string }).requestId,
+        }),
+      );
       next(unauthorizedError("Missing or invalid Authorization bearer credential."));
       return;
     }

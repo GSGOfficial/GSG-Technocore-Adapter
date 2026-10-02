@@ -76,6 +76,8 @@ export interface PublishMessageInput {
   text: string;
   idempotencyKey: string;
   metadata?: Record<string, unknown>;
+  /** Correlates the publish log line with the API request that caused it. */
+  requestId?: string;
 }
 
 export interface PublishMessageResult {

@@ -147,6 +147,17 @@ npm run archive:room -- --room gsg-validation
 npm run archive:all
 ```
 
+## Monitoring
+
+```bash
+npm run status        # service, upstream, recent publishes, stuck items, archive freshness
+```
+
+Every publish attempt is logged as one JSON line (`technocore_publish`), and
+the line never includes the message text. See
+[docs/monitoring.md](docs/monitoring.md) for the log events, the alert timer
+and what to do about each finding.
+
 ## Deployment
 
 Production runs as a systemd service on the api.gsgnft.com droplet. Follow

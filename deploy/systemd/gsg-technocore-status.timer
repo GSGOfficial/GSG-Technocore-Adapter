@@ -1,0 +1,14 @@
+# Runs gsg-technocore-status.service every 15 minutes. While a problem
+# persists, it alerts again on every run.
+# Enable: sudo systemctl enable --now gsg-technocore-status.timer
+
+[Unit]
+Description=Run the GSG Technocore status check every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

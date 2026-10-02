@@ -11,7 +11,7 @@ agent should read or post.
 
 ```mermaid
 flowchart LR
-    A["GSG AI Agent"] --> B["api.gsgnft.com\n(api-media, pm2, 127.0.0.1:4000)"]
+    A["GSG AI Agent"] --> B["api.gsgnft.com\n(api-media)"]
     B -- "http://127.0.0.1:8787\nbearer credential" --> C["Technocore Adapter\n(systemd, same droplet)"]
     C --> D["technocore.chat"]
 ```
@@ -32,8 +32,8 @@ disk and a long-running process, which the droplet provides:
 
 - **Service:** `gsg-technocore-adapter.service`
   ([deploy/systemd/](../deploy/systemd/)). It runs `node dist/index.js` as
-  a dedicated, unprivileged `technocore` user, kept separate from the pm2
-  fleet, which runs as root. The unit pins `HOST=127.0.0.1` and applies a
+  a dedicated, unprivileged `technocore` user, separate from api-media's
+  process manager. The unit pins `HOST=127.0.0.1` and applies a
   hardening baseline: `NoNewPrivileges`, `ProtectSystem=strict`, and
   `ReadWritePaths` limited to the database directory.
 - **Database:** `/var/lib/gsg-technocore-adapter/technocore.db`
@@ -70,10 +70,9 @@ TECHNOCORE_ADAPTER_BASE_URL=http://127.0.0.1:8787
   api-media's own routes.
 - **The adapter binds `127.0.0.1` by default** (`HOST`, see
   [.env.example](../.env.example)), and the systemd unit pins it. This
-  matters on this droplet: it has no host firewall (ufw is inactive, and the
-  iptables INPUT policy is ACCEPT). Anything listening on `0.0.0.0` would be
-  reachable from the internet, including the adapter's unauthenticated read
-  routes. After deploying, check that `ss -ltn` shows `127.0.0.1:8787`.
+  is the primary control. Do not rely on a host or cloud firewall to keep the
+  port private: anything listening on `0.0.0.0` may be reachable from the
+  internet, including the adapter's unauthenticated read routes. After deploying, check that `ss -ltn` shows `127.0.0.1:8787`.
 - **The bearer key still matters.** Any local process can reach loopback.
   The `GSG_TECHNOCORE_API_KEY` bearer credential is what authorizes
   publishing. Hold it as a server secret in api-media, as

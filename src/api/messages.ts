@@ -101,6 +101,7 @@ export function messagesRouter(ctx: AdapterContext): Router {
         text: body.text,
         idempotencyKey,
         metadata: body.metadata,
+        requestId: (req as typeof req & { requestId?: string }).requestId,
       });
 
       res.json({ success: true, data: result });

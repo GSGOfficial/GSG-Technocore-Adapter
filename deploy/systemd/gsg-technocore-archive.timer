@@ -1,0 +1,14 @@
+# Runs gsg-technocore-archive.service every 5 minutes.
+# Enable: sudo systemctl enable --now gsg-technocore-archive.timer
+
+[Unit]
+Description=Run the GSG Technocore archive pass every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

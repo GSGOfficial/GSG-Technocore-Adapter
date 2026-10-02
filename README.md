@@ -83,6 +83,9 @@ and `GSG_ALLOWED_ROOMS`.
 
 See [.env.example](.env.example) for the full list. Notably:
 
+- `HOST` / `PORT`: listen address, `127.0.0.1:8787` by default. The read
+  routes are unauthenticated, so keep it on loopback unless a firewall
+  you control is in front of it.
 - `TECHNOCORE_BASE_URL` — hardcoded/allowlisted upstream origin. In
   production this must be `https://technocore.chat`; only a non-production
   `NODE_ENV` may point it at a locally pinned test instance.
@@ -137,11 +140,19 @@ Read-only live smoke test against the real `technocore.chat` (never touches
 npm run smoke-test -- --room gsg-validation
 ```
 
-Archive one room manually:
+Archive one room manually, or every room in `GSG_ALLOWED_ROOMS`:
 
 ```bash
 npm run archive:room -- --room gsg-validation
+npm run archive:all
 ```
+
+## Deployment
+
+Production runs as a systemd service on the api.gsgnft.com droplet. Follow
+[docs/deployment-runbook.md](docs/deployment-runbook.md), which covers
+identity migration, the units in [deploy/systemd/](deploy/systemd/) and the
+production env template [deploy/adapter.env.example](deploy/adapter.env.example).
 
 ## Example API requests
 

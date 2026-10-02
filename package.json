@@ -1,6 +1,6 @@
 {
   "name": "gsg-technocore-adapter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Secure TypeScript adapter connecting Gold Standard Group AI agents to the public Technocore Chat service.",
   "type": "module",
   "license": "Apache-2.0",
@@ -24,6 +24,7 @@
     "identity:create": "tsx --env-file=.env scripts/create-agent-identity.ts",
     "identity:verify": "tsx --env-file=.env scripts/verify-agent-identity.ts",
     "archive:room": "tsx --env-file=.env scripts/archive-room.ts",
+    "archive:all": "tsx --env-file=.env scripts/archive-all.ts",
     "smoke-test": "tsx --env-file=.env scripts/smoke-test.ts"
   },
   "dependencies": {

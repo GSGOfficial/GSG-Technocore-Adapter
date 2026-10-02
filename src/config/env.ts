@@ -5,6 +5,12 @@ const KNOWN_UPSTREAM_HOST = "technocore.chat";
 const rawEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
+  // Loopback by default: the read routes are unauthenticated, so the
+  // adapter must not be reachable from outside the host unless an operator
+  // deliberately opts in.
+  HOST: z.string().min(1).default("127.0.0.1"),
+  PORT: z.coerce.number().int().min(1).max(65535).default(8787),
+
   TECHNOCORE_BASE_URL: z.string().url().default(`https://${KNOWN_UPSTREAM_HOST}`),
   TECHNOCORE_DEFAULT_READ_LIMIT: z.coerce.number().int().min(1).max(200).default(50),
   TECHNOCORE_LONG_POLL_SECONDS: z.coerce.number().min(0).max(10).default(0),
@@ -32,6 +38,8 @@ export type RawEnv = z.infer<typeof rawEnvSchema>;
 
 export interface AdapterConfig {
   nodeEnv: "development" | "test" | "production";
+  host: string;
+  port: number;
   technocoreBaseUrl: string;
   defaultReadLimit: number;
   longPollSeconds: number;
@@ -93,6 +101,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AdapterConf
 
   const config: AdapterConfig = {
     nodeEnv: env.NODE_ENV,
+    host: env.HOST,
+    port: env.PORT,
     technocoreBaseUrl: env.TECHNOCORE_BASE_URL.replace(/\/+$/, ""),
     defaultReadLimit: env.TECHNOCORE_DEFAULT_READ_LIMIT,
     longPollSeconds: env.TECHNOCORE_LONG_POLL_SECONDS,

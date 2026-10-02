@@ -1,0 +1,32 @@
+# One archive pass over every room in GSG_ALLOWED_ROOMS. Triggered by
+# gsg-technocore-archive.timer; not enabled on its own.
+# See docs/deployment-runbook.md.
+
+[Unit]
+Description=GSG Technocore Adapter archive pass
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=technocore
+Group=technocore
+WorkingDirectory=/opt/gsg-technocore-adapter
+EnvironmentFile=/opt/gsg-technocore-adapter/.env
+# Runs the TypeScript script through tsx directly, not via npm, so nothing
+# needs to write to the technocore user's home directory.
+ExecStart=/usr/bin/node node_modules/tsx/dist/cli.mjs scripts/archive-all.ts
+TimeoutStartSec=5min
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+# tsx writes its transform cache under /tmp; PrivateTmp makes that writable.
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/gsg-technocore-adapter

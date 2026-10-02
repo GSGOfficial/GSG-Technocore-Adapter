@@ -13,6 +13,8 @@ const API_KEY = "test-gsg-api-key";
 function testConfig(): AdapterConfig {
   return {
     nodeEnv: "test",
+    host: "127.0.0.1",
+    port: 8787,
     technocoreBaseUrl: "https://technocore.chat",
     defaultReadLimit: 50,
     longPollSeconds: 0,
@@ -106,7 +108,7 @@ describe("technocore adapter API", () => {
   it("publishes a signed message end to end and archives it", async () => {
     const { publicDid } = seedActiveAgent(ctx, "gsg-financial-agent");
 
-    global.fetch = vi.fn(async () => {
+    const fetchMock = vi.fn(async (_url: URL) => {
       return new Response(
         JSON.stringify({
           room: "gsg-financial",
@@ -117,7 +119,8 @@ describe("technocore adapter API", () => {
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       );
-    }) as unknown as typeof fetch;
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     const app = createStandaloneApp(ctx);
     const res = await request(app)
@@ -130,6 +133,12 @@ describe("technocore adapter API", () => {
     expect(res.body.data.did).toBe(publicDid);
     expect(res.body.data.sequence).toBe(101);
     expect(res.body.data.archived).toBe(true);
+
+    // Upstream answers writes with a plain-text room view unless JSON is
+    // requested explicitly.
+    const writeUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(writeUrl.pathname).toContain("/say-signed/");
+    expect(writeUrl.searchParams.get("format")).toBe("json");
 
     const archived = ctx.db
       .prepare("SELECT * FROM technocore_messages WHERE room = ? AND direction = 'outbound'")
@@ -170,5 +179,16 @@ describe("technocore adapter API", () => {
       .patch("/api/technocore/agents/gsg-financial-agent/status")
       .send({ status: "revoked" });
     expect(res.status).toBe(401);
+  });
+
+  it("returns a validation error, not an upstream error, for an invalid contribution body", async () => {
+    const app = createStandaloneApp(ctx);
+    const res = await request(app)
+      .post("/api/technocore/contributions")
+      .set("Authorization", `Bearer ${API_KEY}`)
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("TECHNOCORE_INVALID_MESSAGE");
+    expect(res.body.error.message).toContain("title");
   });
 });

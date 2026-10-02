@@ -1,6 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { randomUUID } from "node:crypto";
-import { isTechnocoreError, TechnocoreError } from "../client/technocore-errors.js";
+import { ZodError } from "zod";
+import {
+  invalidMessageError,
+  isTechnocoreError,
+  TechnocoreError,
+} from "../client/technocore-errors.js";
 
 export interface ApiErrorBody {
   success: false;
@@ -39,6 +44,15 @@ export function sendError(req: Request, res: Response, err: TechnocoreError): vo
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (isTechnocoreError(err)) {
     sendError(req, res, err);
+    return;
+  }
+  if (err instanceof ZodError) {
+    // Request body/query failed schema validation. Report which fields and
+    // why, but never echo the submitted values back.
+    const issues = err.issues
+      .map((i) => `${i.path.join(".") || "(body)"}: ${i.message}`)
+      .join("; ");
+    sendError(req, res, invalidMessageError(`Invalid request: ${issues}`));
     return;
   }
   console.error(

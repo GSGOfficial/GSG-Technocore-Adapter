@@ -46,12 +46,14 @@ function main(): void {
   const config = loadConfig();
   const ctx = buildAdapterContext(config);
   const app = createStandaloneApp(ctx);
-  const port = Number(process.env.PORT ?? 8787);
-  app.listen(port, () => {
+  const server = app.listen(config.port, config.host, () => {
+    const address = server.address();
+    const bound = typeof address === "object" && address !== null ? address : null;
     console.log(
       JSON.stringify({
         event: "technocore_adapter_started",
-        port,
+        host: bound?.address ?? config.host,
+        port: bound?.port ?? config.port,
         nodeEnv: config.nodeEnv,
         allowedRooms: config.allowedRooms,
         publishingEnabled: ctx.publishService !== null,

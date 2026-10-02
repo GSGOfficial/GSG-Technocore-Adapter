@@ -1,0 +1,37 @@
+# GSG Technocore Adapter: long-running API service.
+# Install: sudo cp deploy/systemd/gsg-technocore-adapter.service /etc/systemd/system/
+# See docs/deployment-runbook.md.
+
+[Unit]
+Description=GSG Technocore Adapter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=technocore
+Group=technocore
+WorkingDirectory=/opt/gsg-technocore-adapter
+EnvironmentFile=/opt/gsg-technocore-adapter/.env
+# Loopback only. Do not set HOST in .env: values from EnvironmentFile
+# override this line.
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+
+# Hardening baseline. The only writable path is the database directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/gsg-technocore-adapter
+
+[Install]
+WantedBy=multi-user.target
